@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "dwarf2.h"
 #include "Registers.hpp"
@@ -63,9 +67,16 @@ private:
 
   static pint_t getCFA(A &addressSpace, const PrologInfo &prolog,
                        const R &registers) {
-    if (prolog.cfaRegister != 0)
-      return (pint_t)((sint_t)registers.getRegister((int)prolog.cfaRegister) +
-             prolog.cfaRegisterOffset);
+    if (prolog.cfaRegister != 0) {
+          pint_t cfa = (pint_t)((sint_t)registers.getRegister((int)prolog.cfaRegister) +
+                 prolog.cfaRegisterOffset);
+// #if defined(__x86_64__)
+//       if (prolog.cfaRegister == UNW_X86_64_RSP)
+//           cfa -= prolog.spExtraArgSize;
+// #endif
+      return cfa;
+    }
+
     if (prolog.cfaExpression != 0)
       return evaluateExpression((pint_t)prolog.cfaExpression, addressSpace, 
                                 registers, 0);
@@ -160,6 +171,18 @@ int DwarfInstructions<A, R>::stepWithDwarf(A &addressSpace, pint_t pc,
                                             R::getArch(), &prolog)) {
       // get pointer to cfa (architecture specific)
       pint_t cfa = getCFA(addressSpace, prolog, registers);
+
+      // Check validity of the CFA.
+      // This is a very dirty hack (inspired by original libunwind version).
+      // Motivation: sometimes libunwind parse wrong value instead of CFA.
+      // We check that memory address belongs to our process by issuing "mincore" syscall.
+      // Actually we don't care if the address is in core or not, we only check return code.
+      // If Address Sanitizer will argue, replace syscall to inline assembly.
+      {
+        unsigned char mincore_res = 0;
+        if (0 != syscall(SYS_mincore, (void*)(cfa / 4096 * 4096), 1, &mincore_res) && errno != ENOSYS)
+          return UNW_EBADFRAME;
+      }
 
        // restore registers that DWARF says were saved
       R newRegisters = registers;

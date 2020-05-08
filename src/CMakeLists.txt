@@ -95,6 +95,9 @@ if (APPLE)
   endif ()
 endif ()
 
+# disable sanitizers
+list(APPEND LIBUNWIND_COMPILE_FLAGS -fno-sanitize=all)
+
 string(REPLACE ";" " " LIBUNWIND_COMPILE_FLAGS "${LIBUNWIND_COMPILE_FLAGS}")
 string(REPLACE ";" " " LIBUNWIND_CXX_FLAGS "${LIBUNWIND_CXX_FLAGS}")
 string(REPLACE ";" " " LIBUNWIND_C_FLAGS "${LIBUNWIND_C_FLAGS}")
@@ -112,6 +115,7 @@ if (LIBUNWIND_ENABLE_SHARED)
     llvm_setup_rpath(unwind_shared)
   endif()
   target_link_libraries(unwind_shared PRIVATE ${libraries})
+  target_compile_definitions(unwind_shared PRIVATE _LIBUNWIND_NO_HEAP=1)
   set_target_properties(unwind_shared
                         PROPERTIES
                           COMPILE_FLAGS "${LIBUNWIND_COMPILE_FLAGS}"
@@ -129,6 +133,7 @@ endif()
 if (LIBUNWIND_ENABLE_STATIC)
   add_library(unwind_static STATIC ${LIBUNWIND_SOURCES} ${LIBUNWIND_HEADERS})
   target_link_libraries(unwind_static PRIVATE ${libraries})
+  target_compile_definitions(unwind_static PRIVATE _LIBUNWIND_NO_HEAP=1)
   set_target_properties(unwind_static
                         PROPERTIES
                           COMPILE_FLAGS "${LIBUNWIND_COMPILE_FLAGS}"

@@ -285,7 +285,7 @@ inline int64_t LocalAddressSpace::getSLEB128(pint_t &addr, pint_t end) {
   } while (byte & 0x80);
   // sign extend negative numbers
   if ((byte & 0x40) != 0)
-    result |= (-1ULL) << bit;
+    result |= static_cast<int64_t>((-1ULL) << bit);
   addr = (pint_t) p;
   return result;
 }
@@ -544,7 +544,7 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
         }
 
         if (found_obj && found_hdr) {
-          cbdata->sects->dwarf_section_length = object_length;
+          cbdata->sects->dwarf_section_length = object_length - (cbdata->sects->dwarf_section - cbdata->sects->dso_base);
           return true;
         } else {
           return false;
